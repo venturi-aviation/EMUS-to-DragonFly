@@ -7,9 +7,9 @@
 struct can_frame msg1;  // For receiving the message
 
 struct can_frame msg; // For sending the message 
-struct can_frame msg2;
 struct can_frame msg3;
 struct can_frame msg4;
+struct can_frame msg5;
 
 //CAN_message_t msg1;
 MCP2515 mcp2515(10); // SPI CS Pin 10 
@@ -102,12 +102,12 @@ void loop(){
   /////////////////////////  For Dragonfly
   msg.can_id = 0x687; //CAN id as 0x036, 0x687
   msg.can_dlc = 8; //CAN data length as 8
-  msg2.can_id = 0x687; //CAN id as 0x036, 0x687
-  msg2.can_dlc = 8; //CAN data length as 8
   msg3.can_id = 0x687; //CAN id as 0x036, 0x687
   msg3.can_dlc = 8; //CAN data length as 8
   msg4.can_id = 0x687; //CAN id as 0x036, 0x687
   msg4.can_dlc = 8; //CAN data length as 8
+  msg5.can_id = 0x687; //CAN id as 0x036, 0x687
+  msg5.can_dlc = 8; //CAN data length as 8
 
   ////////////////////////////
  //if ((mcp2515.readMessage(&canMsg) == MCP2515::ERROR_OK) && (canMsg.can_id == 0x036))
@@ -162,27 +162,27 @@ if ((mcp2515.readMessage(&msg1) == MCP2515::ERROR_OK))
 // Checking the operational status
 // All the status here are hard coded just because, it's not one to one co-relation between EMUS BMS and ELEO BMS, they have different architecture.
 
-if ((mcp2515.readMessage(&msg1)== MCP2515::ERROR_OK) && (msg1.can_id == base+133))
+if ((mcp2515.readMessage(&msg1)== MCP2515::ERROR_OK) && (msg1.can_id == 444))   // base+ 7
 {
-    Operational = ((msg1.data[1]==1));
-    Errorpresent = (((msg1.data[1] ==  2) || (msg1.data[1]== 14)) );  // combining multiple scenario, look into EMUS data sheet
+    Operational = 0 ;//((msg1.data[1]==1));
+    Errorpresent = 0 ; //(((msg1.data[1] ==  2) || (msg1.data[1]== 14)) );  // combining multiple scenario, look into EMUS data sheet
     //bool SAFAovervoltage = (if (msg1.data[1]==1));
     Regencharging = 0;
     Chargingmode = 0;
     Balancingmode =0;
 
         //2. SAFA
-    SAFAovervoltage = 0;
-    SAFAundervoltage = 0;
-    SAFAovertemp = 0;
-    SAFAundertemp = 0;
-    SAFAchargecurrent = 0;
-    SAFAtasktimeout = 0;
-    SAFAwatchdogtimeout = 0;
+    SAFAovervoltage = bitRead(msg1.data[0],1);     // over Voltage, data coming from base+7, msg1.data[0],1
+    SAFAundervoltage = bitRead(msg1.data[0],0);
+    SAFAovertemp = bitRead(msg1.data[1],2);  // data coming from id base +7 and message msg1.data[1],2
+    SAFAundertemp = 0; // Not defined in EMUS BMS
+    SAFAchargecurrent = bitRead(msg1.data[0],3); 
+    SAFAtasktimeout = 0;  // Not defined in EMUS
+    SAFAwatchdogtimeout = 0;   // Not defined in EMUS
         //3. ERRA
-    ERRovervoltage = 0;
-    ERRundervoltage = 0;
-    ERRovertemp = 0;
+    ERRovervoltage = bitRead(msg1.data[0],1); 
+    ERRundervoltage = bitRead(msg1.data[2],5); // EMUS Pack Under voltage warning
+    ERRovertemp = bitRead(msg1.data[2],0);
     ERRundertemp = 0;
     ERRovertempbalancing = 0;
     ERRovertemppcb = 0;
@@ -215,78 +215,9 @@ if ((mcp2515.readMessage(&msg1)== MCP2515::ERROR_OK) && (msg1.can_id == base+133
     ERRnoinitialhvilmeasurement =0 ;           // Bit 2 – no initial HVIL measurement (HV BC ONLY)
     ERRnoinitialinsulationmeasurement = 0;
 
-}
+    // Experimental code goes here....
 
-
-// Vmin and Vmax Tmin and Tmax 
-if ((mcp2515.readMessage(&msg1)== MCP2515::ERROR_OK) && (msg1.can_id == (438)))
-//if ((mcp2515.readMessage(&msg1)== MCP2515::ERROR_OK) && (msg1.can_id == 0x1B6))
-{
-    data1 = msg1.data[3];  
-    data2 = msg1.data[4];
-    data3 = msg1.data[5];
-    data4 = msg1.data[6];
-
-double Vmin = msg1.data[0]/100.00 +2.00 ;
-    dataVmin = msg1.data[0];
-double Vmax = msg1.data[1]/100.00 + 2.00 ;
-    dataVmax = msg1.data[1];
-//double DCTOT = ((msg1.data[3]<<24) + (msg1.data[4]<<16) + (msg1.data[5]<<8) + (msg1.data[6]))*0.01; 
-double DCTOT = ((msg1.data[3]<<8) + (msg1.data[4]))*0.01; 
-
-
-
-// Printing to observe the result
-
-Serial.println(" Printing data from the base+1 id: Printing Vmin and Vmax");
-Serial.println(Vmin);
-Serial.println(Vmax);
-Serial.println(DCTOT);
-/*
-Serial.println("Debugging DC total byte3 byte4 byte5 byte6:");
-Serial.println(msg1.data[3]);
-Serial.println(msg1.data[4]);
-Serial.println(msg1.data[5]);
-Serial.println(msg1.data[6]);  */
-Serial.println("End of data srings from the base+1 id ");
-
-}
-// Temperature measure
-if ((mcp2515.readMessage(&msg1)== MCP2515::ERROR_OK) && (msg1.can_id == (439)))  // cell module temperature 
-{
-int Tmin = msg1.data[0] -100 ;   // Cell Module minimum temperature
-int Tmax = msg1.data[1] -100;   // Cell Module Maximum Temperature
-TMIN = msg1.data[0] ;
-TMAX = msg1.data[1];
-Serial.println("Printing data from the base+2 id: Printing Tmin and Tmax");
-Serial.println(Tmin);
-Serial.println(Tmax);
-Serial.println("End of data srings from the base+2 id ");
-}
-
-if ((mcp2515.readMessage(&msg1)== MCP2515::ERROR_OK) && (msg1.can_id == (445)))  // cell temperature 
-{
-int Tmin_c = msg1.data[0] ;   // Minimum Cell Temperature
-int Tmax_c = msg1.data[1] ;   // Maximum Cell Temperature
-}
-
-// Writing Current 
-
-if ((mcp2515.readMessage(&msg1)== MCP2515::ERROR_OK) && (msg1.can_id == (442)))  // CURRENT and SOC
-{
-  float CURRENT = ((msg1.data[0]<<8) + msg1.data[1]);   // MSB in 0 and LSB in 1
-  int data01 = msg1.data[0];
-  int data02 = msg1.data[1];
-
-  float SOC = msg1.data[6];
-  Serial.println("Printing data from the base+5 id:  Printing Current and SOC");
-  Serial.println(CURRENT);
-  Serial.println(SOC);
-  Serial.println("End of data srings from the base+5 id ");    
-    
-} 
-
-// Writing DragonFly CAN message
+    // Writing DragonFly CAN message
 
   msg.data[0]=0x01;
   bitWrite(msg.data[1],0, Operational);
@@ -339,59 +270,159 @@ if ((mcp2515.readMessage(&msg1)== MCP2515::ERROR_OK) && (msg1.can_id == (442))) 
   bitWrite(msg.data[7],0, ERRnoinput1);
   bitWrite(msg.data[7],1, ERRnoinitialmodulecomm );
   bitWrite(msg.data[7],2, ERRnoinitialhvilmeasurement);
-  bitWrite(msg.data[7],3, ERRnoinitialinsulationmeasurement);  
-
-  msg2.data[0]=0x03;
-  msg2.data[1]= SOC ;
-  msg2.data[2]= 0;    // Setting the MSB to zero as EMUS just publish in single byte compare to Elleo
-  msg2.data[3]= dataVmin ;
-  msg2.data[4] = 0 ;  // Setting the MSB to zero as EMUS just publish in single byte compare to Elleo
-  msg2.data[5] = dataVmax;
-
-  // Encoding Finish
-  msg2.data[6]= TMIN;
-  msg2.data[7]= TMAX;
-  //msg2.data[6]= TMIN;
-  //msg2.data[7]= TMAX;
-
-  msg3.data[0]=0x04;
-  // Writing the DC total 
-  //msg3.data[1] = data1;
-  //msg3.data[2] = data2;
-  //msg3.data[3] = data3;
-  //msg3.data[4] = data4;
-
-  msg3.data[1] = 101;
-  msg3.data[2] = 456;
-  msg3.data[3] = 32;
-  msg3.data[4] = 9;
-
-
-  msg4.data[0]=0x05;
-
-  msg4.data[1] =0 ;
-  msg4.data[2] = 0;
-  msg4.data[3] = data01 ;
-  msg4.data[4] = data02 ;
-
-  // Writing the Current here
-
-///   Sending all the messgaes
-
+  bitWrite(msg.data[7],3, ERRnoinitialinsulationmeasurement); 
+// Sending Msg on CAN bus
   mcp2515.sendMessage(&msg); //Sends the CAN message
-  Serial.println("Message 1 Sent Successfully");
-  delay(100);
-  mcp2515.sendMessage(&msg2); //Sends the CAN message
-   Serial.println("Message 2 Sent Successfully");
-  delay(100);
-  mcp2515.sendMessage(&msg3); //Sends the CAN message
-   Serial.println("Message 3 Sent Successfully");
-  delay(100);
+   Serial.println("Message 1 Sent Successfully");
+  //delay(100);   
+
+
+    // End of Experimental code
+
+}
+
+
+// Vmin and Vmax Tmin and Tmax 
+if ((mcp2515.readMessage(&msg1)== MCP2515::ERROR_OK) && (msg1.can_id == (438)))
+//if ((mcp2515.readMessage(&msg1)== MCP2515::ERROR_OK) && (msg1.can_id == 0x1B6))
+{
+    data1 = msg1.data[3];  
+    data2 = msg1.data[4];
+    data3 = msg1.data[5];
+    data4 = msg1.data[6];
+
+double Vmin = msg1.data[0]/100.00 +2.00 ;
+    dataVmin = msg1.data[0];
+double Vmax = msg1.data[1]/100.00 + 2.00 ;
+    dataVmax = msg1.data[1];
+//double DCTOT = ((msg1.data[3]<<24) + (msg1.data[4]<<16) + (msg1.data[5]<<8) + (msg1.data[6]))*0.01; 
+double DCTOT = ((msg1.data[3]<<8) + (msg1.data[4]))*0.01; 
+
+
+
+// Printing to observe the result
+
+Serial.println(" Printing data from the base+1 id: Printing Vmin and Vmax");
+Serial.println(Vmin);
+Serial.println(Vmax);
+Serial.println(DCTOT);
+/*
+Serial.println("Debugging DC total byte3 byte4 byte5 byte6:");
+Serial.println(msg1.data[3]);
+Serial.println(msg1.data[4]);
+Serial.println(msg1.data[5]);
+Serial.println(msg1.data[6]);  */
+Serial.println("End of data srings from the base+1 id ");
+
+// Experimental ===========
+//Writing Msg4 
+
+  msg4.data[0]=0x04;
+  // Writing the DC total 
+  msg4.data[1] = data1;
+  Serial.print("Data 1 from Msg4 ");
+  Serial.println(data1);
+  msg4.data[2] = data2;
+  msg4.data[3] = data3;
+  msg4.data[4] = data4;
+
+  //msg4.data[1] = 101;
+  //msg4.data[2] = 456;
+  //msg4.data[3] = 32;
+  //msg4.data[4] = 9;
+
+// End of Msg 4
+// Sending MSg 4 on CAN bus
   mcp2515.sendMessage(&msg4); //Sends the CAN message
    Serial.println("Message 4 Sent Successfully");
-  delay(1000);    
+  //delay(100);
+// End of Msg 3 on CAN bus
 
-  // Here in the code the problem seems to be that the Code is just sending whatever the data it has recorded and not updating always
-  // ides should be to make a function call before sending the message with all new updated data. 
+//================
+
+}
+// Temperature measure
+if ((mcp2515.readMessage(&msg1)== MCP2515::ERROR_OK) && (msg1.can_id == (439)))  // cell module temperature 
+{
+int Tmin = msg1.data[0] -100 ;   // Cell Module minimum temperature
+int Tmax = msg1.data[1] -100;   // Cell Module Maximum Temperature
+TMIN = msg1.data[0] ;
+TMAX = msg1.data[1];
+Serial.println("Printing data from the base+2 id: Printing Tmin and Tmax");
+Serial.println(Tmin);
+Serial.println(Tmax);
+Serial.println("End of data srings from the base+2 id ");
+// My experimental code goes here
+
+// Writing Msg3 
+  msg3.data[0]=0x03;
+  //msg3.data[1]= SOC ;
+  msg3.data[1]= 01;
+  msg3.data[2]= 0;    // Setting the MSB to zero as EMUS just publish in single byte compare to Elleo
+  //msg3.data[3]= dataVmin ;
+  msg3.data[3]= 03 ;
+  msg3.data[4] = 0 ;  // Setting the MSB to zero as EMUS just publish in single byte compare to Elleo
+  //msg3.data[5] = dataVmax;
+  msg3.data[5] = 05;
+
+  // Encoding Finish
+  msg3.data[6]= TMIN;
+  msg3.data[7]= TMAX;
+  //msg3.data[6]= TMIN;
+  //msg3.data[7]= TMAX;
+
+// Sending Msg3 on CAN bus
+  mcp2515.sendMessage(&msg3); //Sends the CAN message
+   Serial.println("Message 3 Sent Successfully");
+  //delay(100);
+
+// End of Msg3  
+
+
+// End of my experimental code
+
+
+}
+
+if ((mcp2515.readMessage(&msg1)== MCP2515::ERROR_OK) && (msg1.can_id == (445)))  // cell temperature 
+{
+int Tmin_c = msg1.data[0] ;   // Minimum Cell Temperature
+int Tmax_c = msg1.data[1] ;   // Maximum Cell Temperature
+}
+
+// Writing Current 
+
+if ((mcp2515.readMessage(&msg1)== MCP2515::ERROR_OK) && (msg1.can_id == (442)))  // CURRENT and SOC
+{
+  float CURRENT = ((msg1.data[0]<<8) + msg1.data[1]);   // MSB in 0 and LSB in 1
+  int data01 = msg1.data[0];
+  int data02 = msg1.data[1];
+
+  float SOC = msg1.data[6];
+  Serial.println("Printing data from the base+5 id:  Printing Current and SOC");
+  Serial.println(CURRENT);
+  Serial.println(SOC);
+  Serial.println("End of data srings from the base+5 id ");  
+
+  // Writing CAN Messagae and sending it here
+// Writing Msg5 
+
+  msg5.data[0]=0x05;
+
+  msg5.data[1] =0 ;
+  msg5.data[2] = 0;
+  msg5.data[3] = data01 ;
+  msg5.data[4] = data02 ;
+
+// End of Msg 5 
+// Sending Msg5 on CAN bus
+  mcp2515.sendMessage(&msg5); //Sends the CAN message
+   Serial.println("Message 5 Sent Successfully");
+  delay(100); 
+
+// End of Msg5 on CAN bus
+    
+} 
+
    
 }
